@@ -1,0 +1,11 @@
+# @package _global_
+# to execute this module run:
+# python run.py module=interpolation
+
+defaults:
+  - /module@_here_: _base_experiment_config.yaml   # base experiment config with defaults params
+  - _self_
+
+module:
+  _target_: src.experiment_types.mdinterpolation.MDInterpolationExperiment
+  monitor: "val/${datamodule.horizon}h_avg/ipol/mse"

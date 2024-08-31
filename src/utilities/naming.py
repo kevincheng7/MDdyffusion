@@ -271,6 +271,8 @@ def clean_name(class_name, mixer=None, dm_type=None) -> str:
         s = "CNN"
     elif "NCSN" in class_name:
         s = "NCSN"
+    elif "DistributionalGraphormer" in class_name:
+        s = "DiG"
     else:
         raise ValueError(f"Unknown class name: {class_name}, did you forget to add it to the clean_name function?")
 

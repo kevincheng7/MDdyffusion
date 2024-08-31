@@ -372,10 +372,10 @@ class BaseExperiment(LightningModule):
                 results = self._reshape_ensemble_preds(results, "predict")
                 preds_shape = results[pred_keys[0]].shape
 
-            if 1 < ensemble_size == preds_shape[0] and len(preds_shape) <= 4:
-                # unsqueeze batch dimension if it was removed (data is only (ensemble, c, h, w)
-                for k in pred_keys:
-                    results[k] = results[k].unsqueeze(1)
+            # if 1 < ensemble_size == preds_shape[0] and len(preds_shape) <= 4:
+            #     # unsqueeze batch dimension if it was removed (data is only (ensemble, c, h, w)
+            #     for k in pred_keys:
+            #         results[k] = results[k].unsqueeze(1)
         return results
 
     def unpack_predictions(self, results: Dict[str, Tensor]) -> Dict[str, Tensor]:
@@ -719,6 +719,8 @@ class BaseExperiment(LightningModule):
             optimizer = optimizers.FusedAdam
         elif optim_name.lower() == "adamw":
             optimizer = torch.optim.AdamW
+        elif optim_name.lower() == "sgd":
+            optimizer = torch.optim.SGD
         else:
             raise ValueError(f"Unknown optimizer type: {optim_name}")
         self.log_text.info(f"{optim_name} optim with kwargs: " + str(kwargs))

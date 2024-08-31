@@ -1,0 +1,12 @@
+# @package _global_
+
+defaults:
+  - _base_model_config.yaml   # general, model independent, parameters
+  - _self_
+
+model:
+  _target_: src.models.distributional_graphormer.DistributionalGraphormerInterpolation
+  dropout: 0.15
+
+trainer:
+  deterministic: False   # Upsampling in this model is not deterministic

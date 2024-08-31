@@ -446,6 +446,7 @@ class DYffusion(BaseDYffusion):
         interpolator: Optional[nn.Module] = None,
         interpolator_run_id: Optional[str] = None,
         interpolator_local_checkpoint_path: Optional[str] = None,
+        hydra_local_config_path: Optional[str] = None,
         interpolator_wandb_ckpt_filename: Optional[str] = None,
         lambda_reconstruction: float = 1.0,
         lambda_reconstruction2: float = 0.0,
@@ -457,6 +458,7 @@ class DYffusion(BaseDYffusion):
         self.interpolator: InterpolationExperiment = get_checkpoint_from_path_or_wandb(
             interpolator,
             interpolator_local_checkpoint_path,
+            hydra_local_config_path,
             interpolator_run_id,
             wandb_kwargs=dict(epoch="best", ckpt_filename=interpolator_wandb_ckpt_filename),
         )

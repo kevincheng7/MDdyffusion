@@ -271,7 +271,8 @@ def extras(
             elif if_wandb_run_already_exists in [None, "ignore"]:
                 wandb_status = "resume"
             else:
-                wandb_status = "???"
+                # wandb_status = "???"
+                wandb_status = None
 
             if config.logger.wandb.get("id") is None:
                 # no wandb id has been assigned yet
@@ -302,7 +303,7 @@ def extras(
     check_config_values(config)
 
     # Init to wandb from rank 0 only in multi-gpu mode
-    if USE_WANDB and int(os.environ.get("LOCAL_RANK", 0)) == 0 and os.environ.get("NODE_RANK", 0) == 0:
+    if USE_WANDB and int(os.environ.get("LOCAL_RANK", 0)) == 0 and os.environ.get("NODE_RANK", 0) == 0 and config.get("manual_init_wandb") is True:
         # wandb_kwargs: dict = OmegaConf.to_container(config.logger.wandb, resolve=True)  # DictConfig -> simple dict
         wandb_kwargs = {
             k: config.logger.wandb.get(k)

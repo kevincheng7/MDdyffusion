@@ -198,6 +198,96 @@ def get_normalization_layer(name, dims, num_groups=None, *args, **kwargs):
         raise ValueError("Unknown normalization name", name)
 
 
+class FAPEloss(nn.Module):
+    """Frame aligned point error loss
+
+    ref: https://github.com/wangleiofficial/FAPEloss/blob/main/fape.py
+
+    Args:
+        Z (int, optional): [description]. Defaults to 10.
+        clamp (int, optional): [description]. Defaults to 10.
+        epsion (float, optional): [description]. Defaults to -1e4.
+    """
+    def __init__(self, Z=10.0, clamp=10.0, epsion=-1e4):
+
+        super().__init__()
+        self.z = Z
+        self.epsion = epsion
+        self.clamp = clamp
+
+    def forward(self, predict_T, transformation, pdb_mask=None, padding_mask=None, device='cpu'):
+        """
+        Args:
+            predict_T (`tensor`, `tensor`): ([batch, N_seq, 3], [batch, N_seq, 3, 3])
+            transformation (`tensor`, `tensor`): ([batch, N_seq, 3], [batch, N_seq, 3, 3])
+            pdb_mask (`tensor`, optional): pdb mask. size: [batch, N_seq, N_seq]. Defaults to None.
+            padding_mask (`tensor`, optional): padding mask. size: [batch, N_seq, N_seq]. Defaults to None.
+        """
+        predict_Trans, predict_R = predict_T
+        translation, RotaionMatrix = transformation
+        delta_predict_Trans = rearrange(predict_Trans, 'b j t -> b j () t') - rearrange(predict_Trans, 'b i t -> b () i t')
+        delta_Trans = rearrange(translation, 'b j t -> b j () t') - rearrange(translation, 'b i t -> b () i t')
+
+        X_hat = torch.einsum('bikq, bjik->bijq', predict_R, delta_predict_Trans)
+        X = torch.einsum('bikq, bjik->bijq', RotaionMatrix, delta_Trans)
+
+        distance = torch.norm(X_hat-X, dim=-1)
+        distance = torch.clamp(distance, max=self.clamp) * (1/self.z)
+
+        if pdb_mask is not None:
+            distance = distance * pdb_mask
+        if padding_mask is not None:
+            distance = distance * padding_mask
+
+        FAPE_loss = torch.mean(distance)
+
+        return FAPE_loss
+
+
+class RMSDloss(nn.Module):
+    """Root Mean Square Deviation loss
+    """
+    def __init__(self):
+        super().__init__()
+
+    def convert_to_CANC(self, T, IR):
+        CA = T # (b, n, 3)
+        N_ref = torch.tensor([1.45597958, 0.0, 0.0], device=T.device) # (3, )
+        C_ref = torch.tensor([-0.533655602, 1.42752619, 0.0], device=T.device) # (3, )
+        N = torch.matmul(IR.transpose(-1, -2), N_ref) + CA
+        C = torch.matmul(IR.transpose(-1, -2), C_ref) + CA
+        return CA, N, C
+
+    def forward(self, predict_T, target_T, num_residue, num_ligand_atom, padding_mask=None):
+        """
+        Args:
+            predict_T (`tensor`, `tensor`): ([batch, N_seq, 3], [batch, N_seq, 3, 3])
+            transformation (`tensor`, `tensor`): ([batch, N_seq, 3], [batch, N_seq, 3, 3])
+            num_residue (`int`)
+            num_ligand_atom (`int`)
+            padding_mask (`tensor`, optional): padding mask. size: [batch, N_seq]. Defaults to None.
+        """
+        predict_Trans, predict_Rot = predict_T
+        target_Trans, target_Rot = target_T
+        pred_CA, pred_N, pred_C = self.convert_to_CANC(predict_Trans[:, :num_residue, :], predict_Rot[:, :num_residue, :, :])
+        pred_LIG = predict_Trans[:, num_residue:, :]
+
+        target_CA, target_N, target_C = self.convert_to_CANC(target_Trans[:, :num_residue, :], target_Rot[:, :num_residue, :, :])
+        target_LIG = target_Trans[:, num_residue:, :]
+
+        pred = torch.cat([pred_CA, pred_C, pred_N, pred_LIG], dim=1)
+        target = torch.cat([target_CA, target_C, target_N, target_LIG], dim=1)
+        squared_distance = torch.linalg.vector_norm(pred - target, dim=-1) ** 2
+        if padding_mask is not None:
+            padding_mask = torch.cat(
+                [padding_mask[:, :num_residue].repeat(1, 3), padding_mask[:, num_residue:]], dim=1
+            )
+            squared_distance = squared_distance * padding_mask
+        rmsd = torch.sqrt(torch.mean(squared_distance))
+        return rmsd
+
+
+
 def get_loss(name, reduction="mean"):
     """Returns the loss function with the given name."""
     name = name.lower().strip().replace("-", "_")
@@ -207,6 +297,10 @@ def get_loss(name, reduction="mean"):
         loss = nn.MSELoss(reduction=reduction)
     elif name in ["smoothl1", "smooth"]:
         loss = nn.SmoothL1Loss(reduction=reduction)
+    elif name in ['fape',]:
+        loss = FAPEloss()
+    elif name in ['rmsd',]:
+        loss = RMSDloss()
     else:
         raise ValueError(f"Unknown loss function {name}")
     return loss

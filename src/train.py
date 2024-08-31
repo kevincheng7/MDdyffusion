@@ -37,7 +37,7 @@ def run_model(config: DictConfig) -> float:
     pl.seed_everything(config.seed)
 
     # If not resuming training, check if run already exists (with same hyperparameters and seed)
-    config = cfg_utils.extras(config, if_wandb_run_already_exists="resume")
+    config = cfg_utils.extras(config, if_wandb_run_already_exists="new")
 
     wandb_id = config.logger.wandb.get("id") if hasattr(config.logger, "wandb") else None
     uses_wandb = wandb_id is not None
@@ -55,7 +55,8 @@ def run_model(config: DictConfig) -> float:
             else:
                 ckpt_filename = "last.ckpt"
 
-        if os.path.exists(ckpt_filename) and wandb_id in ckpt_filename:
+        # if os.path.exists(ckpt_filename) and wandb_id in ckpt_filename:
+        if os.path.exists(ckpt_filename):
             # Load model checkpoint from local file. For safety, only do this if the wandb run id is in the path.
             ckpt_path = ckpt_filename
             log.info(f"Loading model weights from local checkpoint: {ckpt_path}.")

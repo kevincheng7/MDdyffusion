@@ -1,0 +1,45 @@
+# @package _global_
+
+defaults:
+  - example.yaml
+  - override /trainer: ddp.yaml
+  - override /datamodule: md_simulation.yaml
+  - override /model: distributional_graphormer.yaml
+  - override /module: md_interpolation.yaml
+  - _self_
+
+test_mode: True
+ckpt_path: "/gpfs/share/home/2201111701/Kaiwencheng/dyffusion/results/checkpoints/94117/last.ckpt"
+
+name: "md_interpolation_test"
+
+manual_init_wandb: False
+
+module:
+  num_predictions: 5
+  save_dir: ${work_dir}/pdb/
+
+datamodule:
+  data_dir: '/gpfs/share/home/2201111701/Kaiwencheng/distributional_graphormer/protein/data/'
+  batch_size: 2
+  eval_batch_size: 1
+  window: 1
+  horizon: 100
+
+trainer:
+  strategy: "ddp_find_unused_parameters_true"
+  precision: '16-true'
+  deterministic: False      # upsampling is used but not deterministic
+  limit_val_batches: 0
+  accumulate_grad_batches: 2
+
+model:
+  loss_function: "rmsd"
+
+callbacks:
+  early_stopping: null
+
+logger:
+  wandb:
+    project: "DYffusion-MolecularDynamics"
+    tags: ["MolecularDynamics", "interpolation"]

@@ -18,7 +18,7 @@ from src.utilities.utils import get_logger
 # Override this in your project
 # -----------------------------------------------------------------------
 PROJECT = "DYffusion"
-_ENTITY = None  # Set your default entity here, e.g. your wandb username
+_ENTITY = "1971225082"  # Set your default entity here, e.g. your wandb username
 # -----------------------------------------------------------------------
 
 log = get_logger(__name__)

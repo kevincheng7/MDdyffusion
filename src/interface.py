@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from src.datamodules.abstract_datamodule import BaseDataModule
 from src.experiment_types._base_experiment import BaseExperiment
@@ -175,6 +175,7 @@ def reload_model_from_config_and_ckpt(
 def get_checkpoint_from_path_or_wandb(
     model_checkpoint: Optional[torch.nn.Module] = None,
     model_checkpoint_path: Optional[str] = None,
+    hydra_config_path: Optional[str] = None,
     wandb_run_id: Optional[str] = None,
     model_name: Optional[str] = "model",
     wandb_kwargs: Optional[Dict[str, Any]] = None,
@@ -183,10 +184,29 @@ def get_checkpoint_from_path_or_wandb(
         assert model_checkpoint_path is None, "must provide either model_checkpoint or model_checkpoint_path"
         assert wandb_run_id is None, "must provide either model_checkpoint or wandb_run_id"
         model = model_checkpoint
-    # elif model_checkpoint_path is not None:
-    #     raise NotImplementedError('Todo: implement loading from checkpoint path')
-    #     assert wandb_run_path is None, 'must provide either model_checkpoint or wandb_run_path'
-    #
+    elif model_checkpoint_path is not None:
+        assert hydra_config_path is not None, "must provide hydra_config_path when specifying model_checkpoint_path"
+        assert model_checkpoint is None and wandb_run_id is None, "must provide one of [model_checkpoint, model_checkpoint_path, wandb_run_id]"
+        override_key_value = ["module.verbose=False"]
+        overrides = list(override_key_value.copy())
+        # remove overrides of the form k=v, where k has no dot in it. We don't support this.
+        overrides = [o for o in overrides if "=" in o and "." in o.split("=")[0]]
+        if len(overrides) != len(override_key_value):
+            diff = set(overrides) - set(override_key_value)
+            log.warning(f"The following overrides were removed because they are not in the form k=v: {diff}")
+
+        config = OmegaConf.load(hydra_config_path)
+        overrides = OmegaConf.from_dotlist(overrides)
+        config = OmegaConf.unsafe_merge(config, overrides)
+
+        try:
+            model = reload_model_from_config_and_ckpt(config, model_checkpoint_path)["model"] # type: ignore
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"You have probably changed the model code, making it incompatible with older model "
+                f"versions. Tried to reload the model ckpt for run.id={run_id} from {ckpt_path}.\n"
+                f"config.model={config.model}\n{e}"
+            )
     elif wandb_run_id is not None:
         # assert model_checkpoint_path is None, 'must provide either wandb_run_path or model_checkpoint_path'
         override_key_value = ["module.verbose=False"]

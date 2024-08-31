@@ -17,6 +17,8 @@ def get_dims_of_dataset(datamodule_config: DictConfig):
             conditional_dim = 1
         else:
             raise ValueError(f"Unknown physical system: {datamodule_config.physical_system}")
+    elif "molecular_dynamics_simulation" in target:
+        input_dim = output_dim = spatial_dims = conditional_dim = 0
     else:
         raise ValueError(f"Unknown dataset: {target}")
     return {"input": input_dim, "output": output_dim, "spatial": spatial_dims, "conditional": conditional_dim}

@@ -1,0 +1,39 @@
+# @package _global_
+
+defaults:
+  - example.yaml
+  - override /trainer: ddp.yaml
+  - override /datamodule: md_simulation.yaml
+  - override /model: distributional_graphormer.yaml
+  - override /module: md_interpolation.yaml
+  - _self_
+
+name: "md_interpolation"
+
+manual_init_wandb: False
+
+datamodule:
+  data_dir: '/gpfs/share/home/2201111701/Kaiwencheng/distributional_graphormer/protein/data/'
+  batch_size: 2
+  eval_batch_size: 1
+  window: 1
+  horizon: 100
+
+trainer:
+  strategy: "ddp_find_unused_parameters_true"
+  precision: '16-true'
+  max_epochs: 100
+  deterministic: False      # upsampling is used but not deterministic
+  limit_val_batches: 0
+  accumulate_grad_batches: 2
+
+model:
+  loss_function: "rmsd"
+
+callbacks:
+  early_stopping: null
+
+logger:
+  wandb:
+    project: "DYffusion-MolecularDynamics"
+    tags: ["MolecularDynamics", "interpolation"]
